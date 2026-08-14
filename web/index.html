@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Interactive Avatar Kiosk</title>
+<link rel="stylesheet" href="/static/kiosk.css">
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<div id="stage">
+
+  <!-- Avatar layer: Anam WebRTC video, or the dev-mode stand-in -->
+  <video id="persona-video" autoplay playsinline></video>
+  <div id="dev-avatar" hidden>
+    <div class="halo"></div>
+    <div class="silhouette"></div>
+  </div>
+
+  <header id="brand"><span id="store-name"></span></header>
+
+  <div id="state-chip" data-state="attract"><span class="dot"></span><span id="state-label">Idle</span></div>
+
+  <!-- The framed box she presents. Tapping the image opens the product page (PiP). -->
+  <div id="product-frame" hidden>
+    <button class="x" data-close="frame" aria-label="Close">✕</button>
+    <div class="frame-inner">
+      <div class="frame-media"><img id="frame-img" alt=""></div>
+      <div class="frame-body">
+        <div id="frame-brand" class="eyebrow"></div>
+        <h2 id="frame-title"></h2>
+        <div id="frame-price" class="price"></div>
+        <dl id="frame-attrs"></dl>
+        <div class="frame-actions">
+          <button id="frame-video" hidden>▶ Video</button>
+          <button id="frame-3d" hidden>⬡ View in 3D</button>
+          <button id="frame-page">Open product page ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-size media: video / image gallery / 3D turntable -->
+  <div id="media-overlay" hidden>
+    <button class="x" data-close="media" aria-label="Close">✕</button>
+    <div id="media-slot"></div>
+  </div>
+
+  <!-- Picture-in-picture web page (sign-up, product pages). Never full-screen. -->
+  <div id="pip-overlay" hidden>
+    <div class="pip-card">
+      <div class="pip-bar"><span id="pip-title"></span>
+        <button class="x" data-close="pip" aria-label="Close">✕</button></div>
+      <iframe id="pip-frame" title="Web page" hidden></iframe>
+      <div id="pip-qr" hidden>
+        <div class="qr-box"></div>
+        <p class="qr-hint">Scan with your phone camera</p>
+        <p class="qr-url"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telescoping menu drawer -->
+  <nav id="menu-drawer" hidden>
+    <div class="menu-head">
+      <button id="menu-back" hidden>‹ Back</button>
+      <span id="menu-crumb">Browse</span>
+      <button class="x" data-close="menu" aria-label="Close">✕</button>
+    </div>
+    <div id="menu-panel"></div>
+  </nav>
+
+  <footer id="dock">
+    <button id="btn-menu" aria-label="Menu"><span>☰</span><small>Browse</small></button>
+    <button id="btn-mic" aria-label="Microphone"><span>🎙</span><small id="mic-label">Tap to talk</small></button>
+    <button id="btn-close" aria-label="Clear screen"><span>✕</span><small>Clear</small></button>
+  </footer>
+
+  <!-- Dev-only text bar (shown when no speech input is available) -->
+  <form id="dev-input" hidden>
+    <input id="dev-text" type="text" placeholder="Type to her…" autocomplete="off">
+    <button type="submit">Send</button>
+  </form>
+
+  <div id="attract">
+    <div class="attract-inner">
+      <div class="attract-mark">◈</div>
+      <h1 id="attract-title"></h1>
+      <p id="attract-sub">Tap anywhere to begin</p>
+    </div>
+  </div>
+
+  <div id="toast" hidden></div>
+</div>
+<script type="module" src="/static/kiosk.js"></script>
+</body>
+</html>

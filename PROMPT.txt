@@ -1,0 +1,35 @@
+Read BRIEF.md, docs/PROTOCOL.md and START-HERE.md in this repo before doing
+anything. They are the spec. Follow the build order in BRIEF.md section 5 and do
+not skip ahead.
+
+This is a life-size holographic cigar concierge for Cigar Inc., running on a
+Proto Luma (86", 4K, 9:16 portrait) in the store lobby. Everything runs locally
+on this Windows PC: a Python agent (Claude + Deepgram + ElevenLabs) and an
+Unreal Engine 5 app rendering a full-body MetaHuman. No cloud avatar service, no
+web app, no hosting.
+
+The agent/ and scripts/ code is already written and syntax-clean. Read it, don't
+rewrite it. Your job is to complete it, test it, and build the Unreal side.
+
+Start with step 1 only: run scripts/build_catalog.py against data/products.xlsx.
+Report back which columns mapped, which are missing, and anything that looks
+wrong with the data. Then stop and wait for me.
+
+Rules for this whole project:
+
+- Never invent a product, price, spec, or company fact. If it isn't in the
+  catalog or from a tool call, it doesn't get said.
+- Turn on Anthropic prompt caching for the system prompt and tool schemas.
+- Audio2Face-3D runs LOCAL inference on this machine's GPU. Never configure a
+  remote A2F server - it adds ~370ms of lip-sync delay.
+- Audio stays PCM16 mono 16kHz end to end. Don't change the sample rate.
+- Implement docs/PROTOCOL.md exactly. Don't improvise message shapes.
+- Claude never describes the UI. Tool calls drive the scene. Never parse UI
+  intent out of her speech.
+- The background is pure #000000 with nothing rendered behind her, and she gets
+  rim lighting from behind-left and behind-right. This is a Pepper's ghost
+  display - anything that isn't true black shows as haze in the glass.
+- Tobacco compliance is enforced twice: in the persona prompt AND as a code-level
+  output filter. Never rely on the prompt alone.
+- After each numbered step in BRIEF.md section 5, stop and show me the result
+  before starting the next one.
