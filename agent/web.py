@@ -419,3 +419,31 @@ def index():
 if MODELS_DIR.exists():
     app.mount("/models", StaticFiles(directory=MODELS_DIR), name="models")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+
+
+# ---------------------------------------------------------------- subpath
+# Hosting under a path (e.g. https://example.com/hannah/) instead of the domain
+# root: set APP_BASE_PATH=/hannah. The whole app - pages, /api, /ws, /static -
+# moves under that prefix, so a plain reverse proxy that forwards the path
+# untouched is enough; no path rewriting needed. The front end discovers the
+# prefix on its own from its module URL, so nothing else has to be configured.
+# Unset (the default) = served at the domain root, exactly as before.
+
+BASE_PATH = "/" + os.getenv("APP_BASE_PATH", "").strip().strip("/")
+
+if len(BASE_PATH) > 1:
+    from starlette.applications import Starlette
+    from starlette.responses import RedirectResponse
+    from starlette.routing import Mount, Route
+
+    _kiosk = app
+
+    async def _to_slash(request):
+        # /hannah -> /hannah/ so the page's relative asset URLs resolve.
+        return RedirectResponse(BASE_PATH + "/", status_code=307)
+
+    app = Starlette(routes=[
+        Route(BASE_PATH, _to_slash),
+        Mount(BASE_PATH, app=_kiosk),
+    ])
+    log.info("Kiosk mounted under %s/", BASE_PATH)

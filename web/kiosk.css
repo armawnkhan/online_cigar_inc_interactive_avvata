@@ -127,6 +127,44 @@ body {
 }
 .frame-actions button:active { border-color: var(--gold); }
 
+/* ------------- minimized frame -------------
+   The customer starts talking -> the frame shrinks to a thumbnail in the
+   bottom-right so she is never hidden while she is being spoken to.
+   Tapping the thumbnail brings the full frame back. Permanent behavior. */
+#product-frame.minimized {
+  left: auto; right: 2.4vmin; bottom: 4vmin;
+  transform: none; width: 21%;
+  /* scale into the corner, never past the screen edge */
+  transform-origin: 100% 100%;
+  animation: shrink .38s cubic-bezier(.2,.9,.3,1.05);
+  cursor: pointer;
+}
+@keyframes shrink { from { transform: scale(1.9); opacity: .25; } }
+#product-frame.minimized .frame-media { aspect-ratio: 1 / 1; }
+#product-frame.minimized .frame-media img { object-fit: cover; }
+#product-frame.minimized .frame-body { padding: .9vmin 1.2vmin 1.1vmin; }
+#product-frame.minimized #frame-brand,
+#product-frame.minimized #frame-price,
+#product-frame.minimized #frame-attrs,
+#product-frame.minimized .frame-actions { display: none; }
+#product-frame.minimized #frame-title {
+  font-size: 1.5vmin; margin: 0; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#product-frame.minimized .frame-inner {
+  border-color: rgba(201, 164, 92, .55);
+  box-shadow: 0 1vmin 3vmin rgba(0, 0, 0, .6);
+}
+/* the ✕ stays reachable, just smaller */
+#product-frame.minimized .x { width: 3.4vmin; height: 3.4vmin; font-size: 1.5vmin; }
+#product-frame.minimized .tap-hint { display: block; }
+.tap-hint {
+  display: none; position: absolute; left: 0; right: 0; bottom: -2.4vmin;
+  text-align: center; font-size: 1.2vmin; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--muted); pointer-events: none;
+}
+
 /* ------------- overlays ------------- */
 .x {
   position: absolute; top: 1.2vmin; right: 1.2vmin; z-index: 3;

@@ -27,14 +27,14 @@ _CACHE_TTL = 300  # 5 minutes
 FIELDS = [
     "handle", "title", "brand", "category", "price", "size", "ring_gauge",
     "length", "shape", "wrapper", "origin", "strength", "tasting_notes",
-    "description", "image_url", "video_url", "model_3d_url",
+    "description", "image_url", "video_url", "model_3d_url", "smoke_minutes",
     "time_of_day", "blood_type", "palate_profile", "occasion", "pairs_with",
 ]
 
 # Short fields go to Claude; long prose is trimmed so it doesn't eat the budget.
 BRIEF_FIELDS = [
     "handle", "title", "brand", "price", "size", "wrapper", "strength",
-    "origin", "tasting_notes", "image_url",
+    "origin", "tasting_notes", "smoke_minutes", "time_of_day", "image_url",
 ]
 
 

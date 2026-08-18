@@ -1,0 +1,17 @@
+# Secrets — never commit.
+# Ignore .env and every variant (.env.local, .env.bak, .env.2026-08-14…),
+# but keep the key-less template tracked.
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# macOS
+.DS_Store
+
+# local backup snapshots — not part of the app
+*.bak-*

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Interactive Avatar Kiosk</title>
-<link rel="stylesheet" href="/static/kiosk.css">
+<link rel="stylesheet" href="static/kiosk.css">
 <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 </head>
 <body>
@@ -24,6 +24,7 @@
   <!-- The framed box she presents. Tapping the image opens the product page (PiP). -->
   <div id="product-frame" hidden>
     <button class="x" data-close="frame" aria-label="Close">✕</button>
+    <span class="tap-hint">Tap to open</span>
     <div class="frame-inner">
       <div class="frame-media"><img id="frame-img" alt=""></div>
       <div class="frame-body">
@@ -92,6 +93,6 @@
 
   <div id="toast" hidden></div>
 </div>
-<script type="module" src="/static/kiosk.js"></script>
+<script type="module" src="static/kiosk.js"></script>
 </body>
 </html>

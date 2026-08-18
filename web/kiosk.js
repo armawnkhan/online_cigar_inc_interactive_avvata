@@ -40,6 +40,13 @@ function toast(msg, ms = 4000) {
   el._t = setTimeout(() => (el.hidden = true), ms);
 }
 
+/* This file is served from <app-root>/static/kiosk.js, so its own module URL
+   tells us the app root exactly — "/" when hosted at the domain root, or
+   "/hannah/" when hosted under a subpath. Every API and WebSocket URL is built
+   from BASE so the kiosk works in both places with no config. */
+const BASE = new URL("../", import.meta.url).pathname;
+const api = (path) => BASE + path.replace(/^\//, "");
+
 function send(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
 }
@@ -55,7 +62,7 @@ function setState(value) {
 
 function connectWS() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws = new WebSocket(`${proto}://${location.host}${BASE}ws`);
   ws.onopen = () => send({ type: "hello", client: "web", version: "1.0" });
   ws.onclose = () => setTimeout(connectWS, 1500);
   ws.onmessage = (ev) => {
@@ -110,7 +117,7 @@ function endSpeech() {
 /* ------------------------------------------------------------- anam */
 
 async function initAnam() {
-  const r = await fetch("/api/anam-session-token", { method: "POST" });
+  const r = await fetch(api("api/anam-session-token"), { method: "POST" });
   if (!r.ok) throw new Error(`token: ${r.status}`);
   const { sessionToken } = await r.json();
 
@@ -127,12 +134,14 @@ async function initAnam() {
     const last = messages[messages.length - 1];
     if (last && last.role === "user" && last.content && last.content !== lastForwarded) {
       lastForwarded = last.content;
+      onUserSpoke();
       send({ type: "user_text", text: last.content });
     }
   });
 
   anam.addListener(AnamEvent.TALK_STREAM_INTERRUPTED, () => {
     talkStream = null;
+    onUserSpoke();               // they talked over her - get her back on screen
     send({ type: "interrupted" });
   });
 
@@ -173,7 +182,7 @@ function devMicToggle() {
   devRecognition.interimResults = false;
   devRecognition.onresult = (e) => {
     const text = e.results[e.results.length - 1][0].transcript.trim();
-    if (text) send({ type: "user_text", text });
+    if (text) { onUserSpoke(); send({ type: "user_text", text }); }
   };
   devRecognition.onend = () => { if (micLive) devRecognition.start(); };
   devRecognition.start();
@@ -194,8 +203,34 @@ function handleUI(action, p) {
 
 let frameProduct = null;
 
+/* ---- frame minimize / restore ----------------------------------------
+   Rule: the customer must always be able to see her while talking to her.
+   The moment they speak, a shown product frame shrinks to a bottom-right
+   thumbnail; tapping the thumbnail restores it. A new recommendation always
+   comes back full size. */
+
+function frameIsShown() {
+  return !$("product-frame").hidden;
+}
+
+function minimizeFrame() {
+  const el = $("product-frame");
+  if (el.hidden || el.classList.contains("minimized")) return;
+  el.classList.add("minimized");
+}
+
+function restoreFrame() {
+  $("product-frame").classList.remove("minimized");
+}
+
+/** Called whenever the customer speaks or types - she must stay visible. */
+function onUserSpoke() {
+  if (frameIsShown()) minimizeFrame();
+}
+
 function showFrame(p) {
   frameProduct = p;
+  restoreFrame();               // a fresh recommendation is always full size
   $("frame-img").src = p.image_url || "";
   $("frame-brand").textContent = p.brand || "";
   $("frame-title").textContent = p.title || "";
@@ -285,6 +320,7 @@ async function openPip(url, title, id) {
 
 function closeAll() {
   $("product-frame").hidden = true;
+  restoreFrame();               // don't leave .minimized stuck for the next frame
   $("media-overlay").hidden = true;
   $("pip-overlay").hidden = true;
   $("menu-drawer").hidden = true;
@@ -302,7 +338,7 @@ async function openMenu(rootId) {
   await pushMenu("Browse", renderRoot);
   // If the brain asked for a specific submenu, drill straight into it.
   if (rootId && rootId !== "root") {
-    const menus = await (await fetch("/api/menus")).json();
+    const menus = await (await fetch(api("api/menus"))).json();
     const cat = menus.categories.find((c) => c.toLowerCase().includes(String(rootId).toLowerCase().replace(/-/g, " ")));
     if (cat) await pushMenu(cat, () => renderProducts({ category: cat }));
     else if (String(rootId).toLowerCase().includes("show")) {
@@ -330,7 +366,7 @@ async function drawMenu() {
 }
 
 async function renderRoot() {
-  const menus = await (await fetch("/api/menus")).json();
+  const menus = await (await fetch(api("api/menus"))).json();
   const list = document.createElement("div");
   list.className = "menu-list";
   const add = (label, fn) => {
@@ -365,7 +401,7 @@ function renderBrands(brands) {
 
 async function renderProducts(query) {
   const qs = new URLSearchParams(query).toString();
-  const { products } = await (await fetch(`/api/products?${qs}`)).json();
+  const { products } = await (await fetch(api(`api/products?${qs}`))).json();
   const grid = document.createElement("div");
   grid.className = "product-grid";
   for (const p of products) {
@@ -383,7 +419,7 @@ async function renderProducts(query) {
       send({ type: "touch", target: "product_grid", handle: p.handle });
       if (!CONFIG.brain_enabled) {
         // brainless dev fallback: open the frame ourselves
-        const full = await (await fetch(`/api/product/${p.handle}`)).json();
+        const full = await (await fetch(api(`api/product/${p.handle}`))).json();
         showFrame(full);
       }
     };
@@ -414,7 +450,7 @@ document.querySelectorAll(".x").forEach((x) => {
   x.onclick = (e) => {
     e.stopPropagation();
     const what = x.dataset.close;
-    if (what === "frame") { $("product-frame").hidden = true; send({ type: "touch", target: "close" }); }
+    if (what === "frame") { $("product-frame").hidden = true; restoreFrame(); send({ type: "touch", target: "close" }); }
     if (what === "media") { $("media-overlay").hidden = true; $("media-slot").innerHTML = ""; send({ type: "touch", target: "close" }); }
     if (what === "menu") { $("menu-drawer").hidden = true; }
     if (what === "pip") {
@@ -427,6 +463,16 @@ document.querySelectorAll(".x").forEach((x) => {
 });
 
 $("menu-back").onclick = popMenu;
+
+// While minimized, ANY tap on the thumbnail just brings the frame back up -
+// it never jumps straight to the product page from the thumbnail.
+$("product-frame").addEventListener("click", (e) => {
+  if (!$("product-frame").classList.contains("minimized")) return;
+  if (e.target.closest(".x")) return;          // ✕ still closes
+  e.stopPropagation();
+  restoreFrame();
+  if (frameProduct) send({ type: "touch", target: "product_frame", handle: frameProduct.handle });
+}, true);                                       // capture: beat the handlers below
 
 // Tapping the frame's image opens the product page picture-in-picture.
 document.querySelector(".frame-media").onclick = () => {
@@ -445,7 +491,7 @@ function openProductPage() {
 }
 
 async function showMediaFor(kind) {
-  const full = await (await fetch(`/api/product/${frameProduct.handle}`)).json();
+  const full = await (await fetch(api(`api/product/${frameProduct.handle}`))).json();
   const url = kind === "video" ? full.video_url : full.model_3d_url;
   if (url) showMedia({ handle: full.handle, kind, url });
 }
@@ -453,7 +499,7 @@ async function showMediaFor(kind) {
 $("dev-input").addEventListener("submit", (e) => {
   e.preventDefault();
   const text = $("dev-text").value.trim();
-  if (text) { send({ type: "user_text", text }); $("dev-text").value = ""; }
+  if (text) { onUserSpoke(); send({ type: "user_text", text }); $("dev-text").value = ""; }
 });
 
 function enterDevAvatar() {
@@ -465,7 +511,7 @@ function enterDevAvatar() {
 /* ------------------------------------------------------------- boot */
 
 (async function boot() {
-  try { CONFIG = await (await fetch("/api/config")).json(); } catch {}
+  try { CONFIG = await (await fetch(api("api/config"))).json(); } catch {}
   $("store-name").textContent = CONFIG.store_name || "";
   $("attract-title").textContent = CONFIG.store_name || "Welcome";
   $("attract-sub").textContent = CONFIG.persona_name

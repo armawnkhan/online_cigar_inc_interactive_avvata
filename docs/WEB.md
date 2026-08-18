@@ -91,3 +91,39 @@ uvicorn agent.web:app --host 0.0.0.0 --port 8000
 Serve behind HTTPS (Anam's mic capture requires a secure origin), open
 `https://<host>/` in the Luma's browser, full-screen/kiosk mode.
 Multi-touch works out of the box — it's a web page.
+
+## Hosting under a subpath
+
+To serve at `https://example.com/hannah/` instead of the domain root, set one
+env var:
+
+```
+APP_BASE_PATH=/hannah
+```
+
+The whole app moves under that prefix — page, `/api`, `/ws`, `/static`. The
+front end works out the prefix from its own module URL (`kiosk.js` is always at
+`<root>/static/kiosk.js`), so nothing else needs configuring, and `/hannah`
+without the trailing slash redirects to `/hannah/`.
+
+Because the app owns the prefix, the reverse proxy must forward the path
+**untouched** — do not strip it. nginx:
+
+```nginx
+location /hannah/ {
+    proxy_pass         http://127.0.0.1:8000;   # no trailing slash = no rewrite
+    proxy_http_version 1.1;
+    proxy_set_header   Upgrade $http_upgrade;   # required: /ws is a WebSocket
+    proxy_set_header   Connection "upgrade";
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+}
+```
+
+The two `Upgrade`/`Connection` headers are not optional. Without them the
+avatar loads and then never hears anything — the WebSocket carrying the whole
+conversation silently fails to connect.
+
+This is a hosted Python service, not a folder of files: it needs Python 3.11,
+a long-running `uvicorn` process, HTTPS, and WebSocket proxying. Uploading a
+zip to typical shared hosting will not work.

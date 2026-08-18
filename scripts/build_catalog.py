@@ -9,6 +9,7 @@ the model, and usable by the recommend tool. Sell cars tomorrow - add a
 """
 import sys
 import re
+import math
 import sqlite3
 import logging
 from pathlib import Path
@@ -39,8 +40,9 @@ FIELD_ALIASES = {
     "image_url":       ["imageurl", "image", "photo", "mainimage", "img"],
     "video_url":       ["videourl", "video"],
     "model_3d_url":    ["model3durl", "model3d", "glb", "glburl", "3dmodel"],
+    "smoke_minutes":   ["smokeminutes", "smokingtime", "duration", "burntime"],
     # recommendation columns
-    "time_of_day":     ["timeofday", "besttime", "smoketime", "occasiontime"],
+    "time_of_day":     ["timeofday", "besttime", "occasiontime"],
     "blood_type":      ["bloodtype", "bloodtypeplayful", "blood"],
     "palate_profile":  ["palateprofile", "palate", "tasteprofile", "appetite"],
     "occasion":        ["occasion", "bestfor", "pairsoccasion"],
@@ -87,6 +89,80 @@ def slugify(title: str) -> str:
     return s or "untitled"
 
 
+# ------------------------------------------------------------------ derived
+# Two values the sheet doesn't have to carry, because they follow from the
+# cigar's own dimensions and strength. Both are only ever FILLED IN when the
+# sheet leaves them blank - a real value in the Excel always wins.
+
+# Strength on the 1-5 scale: 1 mild ... 5 full.
+STRENGTH_SCALE = {
+    "mild": 1, "mild-medium": 2, "mild to medium": 2, "mild/medium": 2,
+    "medium": 3,
+    "medium-full": 4, "medium to full": 4, "medium/full": 4,
+    "full": 5,
+}
+
+# When that strength is best enjoyed.
+TIME_BY_SCALE = {
+    1: "Morning, with coffee",
+    2: "Morning, with coffee",
+    3: "Midday, Afternoon",
+    4: "After lunch, After dinner",
+    5: "After lunch, After dinner",
+}
+
+CU_IN_TO_ML = 16.387064          # 1 cubic inch = 16.387064 cm3 (mL)
+_UNICODE_FRAC = {"½": .5, "¼": .25, "¾": .75, "⅓": 1/3, "⅔": 2/3, "⅛": .125,
+                 "⅜": .375, "⅝": .625, "⅞": .875}
+
+
+def _num(v):
+    """Parse 6, 6.75, '6 1/8', '6¾' -> float. None if it isn't a number."""
+    if v is None:
+        return None
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v)
+    s = str(v).strip()
+    if not s:
+        return None
+    total = 0.0
+    for ch, val in _UNICODE_FRAC.items():
+        if ch in s:
+            total += val
+            s = s.replace(ch, " ")
+    m = re.match(r"\s*(\d+(?:\.\d+)?)(?:\s+(\d+)\s*/\s*(\d+))?", s)
+    if not m:
+        return total or None
+    total += float(m.group(1))
+    if m.group(2) and m.group(3) and float(m.group(3)):
+        total += float(m.group(2)) / float(m.group(3))
+    return total or None
+
+
+def smoke_minutes(length, ring_gauge):
+    """Minutes to smoke, from the volume of tobacco in the cigar.
+
+    A ring gauge is 1/64 inch of DIAMETER, so radius = ring/128 inches.
+    Volume = pi * r^2 * length  (cubic inches) -> mL.
+    Reference: a 6 x 52 Toro is 50.98 mL and smokes in ~51 minutes,
+    so 1 mL == 1 minute.
+    """
+    ln, rg = _num(length), _num(ring_gauge)
+    if not ln or not rg or ln <= 0 or rg <= 0:
+        return None
+    volume_ml = math.pi * (rg / 128.0) ** 2 * ln * CU_IN_TO_ML
+    return str(int(round(volume_ml)))
+
+
+def time_of_day_for(strength):
+    """Mild smokes with morning coffee; full waits until after dinner."""
+    if not strength:
+        return None
+    key = re.sub(r"\s*-\s*", "-", str(strength).strip().lower())
+    scale = STRENGTH_SCALE.get(key)
+    return TIME_BY_SCALE.get(scale) if scale else None
+
+
 def main(xlsx_path: str):
     src = Path(xlsx_path)
     if not src.exists():
@@ -113,8 +189,11 @@ def main(xlsx_path: str):
         log.error("Headers found: %s", list(df.columns))
         sys.exit(1)
 
+    # These are computed below when the sheet doesn't carry them, so a missing
+    # column is normal rather than a problem worth warning about.
+    DERIVED = {"smoke_minutes", "time_of_day"}
     for field in FIELD_ALIASES:
-        if field not in mapping:
+        if field not in mapping and field not in DERIVED:
             log.warning("No column mapped to '%s' -> will be NULL for every product", field)
     if unmapped:
         log.info("Free-form attribute columns (searchable, shown to the model): %s", unmapped)
@@ -134,6 +213,7 @@ def main(xlsx_path: str):
     )
 
     inserted, skipped = 0, 0
+    derived_minutes, derived_time = 0, 0
     seen = set()
 
     if "handle" not in mapping:
@@ -156,6 +236,16 @@ def main(xlsx_path: str):
             skipped += 1
             continue
         seen.add(rec["handle"])
+
+        # Derived, never overriding a real value from the sheet.
+        if not rec["smoke_minutes"]:
+            if (mins := smoke_minutes(rec["length"], rec["ring_gauge"])):
+                rec["smoke_minutes"] = mins
+                derived_minutes += 1
+        if not rec["time_of_day"]:
+            if (tod := time_of_day_for(rec["strength"])):
+                rec["time_of_day"] = tod
+                derived_time += 1
 
         db.execute(
             f"INSERT INTO products ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
@@ -183,6 +273,8 @@ def main(xlsx_path: str):
     db.commit()
 
     log.info("Wrote %d products to %s (%d rows skipped)", inserted, DB_PATH, skipped)
+    log.info("Derived smoke_minutes for %d products (volume of tobacco, 1 mL = 1 min)", derived_minutes)
+    log.info("Derived time_of_day for %d products (from strength, 1-5 scale)", derived_time)
 
     with_media = db.execute(
         "SELECT COUNT(*) FROM products WHERE model_3d_url IS NOT NULL"
