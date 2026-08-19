@@ -138,7 +138,7 @@ function speak(text) {
   if (anam) {
     if (!talkStream) talkStream = anam.createTalkMessageStream();
     talkStream.streamMessageChunk(text + " ", false);
-  } else if ("speechSynthesis" in window) {
+  } else if ("speechSynthesis" in window && soundOn) {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.0; u.pitch = 1.0;
     speechSynthesis.speak(u);
@@ -173,8 +173,22 @@ function stopSpeaking() {
 }
 
 function applySound() {
+  // Two different sound sources depending on how she is running:
+  //   Anam live   -> audio rides on the <video> element
+  //   fallback    -> browser speechSynthesis, which ignores the video element
+  // Muting only the video left the fallback voice talking, which is what
+  // happens whenever the avatar fails to load.
   const v = $("persona-video");
   if (v) { v.muted = !soundOn; v.volume = soundOn ? 1 : 0; }
+  if (!soundOn && "speechSynthesis" in window) {
+    try { speechSynthesis.cancel(); } catch {}
+  }
+  if (anam) {
+    // Belt and braces: silence it at the SDK too, if this version exposes it.
+    for (const m of soundOn ? ["unmuteOutputAudio", "unmute"] : ["muteOutputAudio", "mute"]) {
+      if (typeof anam[m] === "function") { try { anam[m](); break; } catch {} }
+    }
+  }
   const btn = $("btn-sound");
   btn.classList.toggle("is-on", soundOn);
   btn.setAttribute("aria-pressed", String(soundOn));
@@ -192,7 +206,11 @@ function applyCaptions() {
 
 async function initAnam() {
   const r = await fetch(api("api/anam-session-token"), { method: "POST" });
-  if (!r.ok) throw new Error(`token: ${r.status}`);
+  if (!r.ok) {
+    let why = `HTTP ${r.status}`;
+    try { const j = await r.json(); if (j && j.detail) why = j.detail; } catch {}
+    throw new Error(why);
+  }
   const { sessionToken } = await r.json();
 
   const sdk = await import("https://esm.sh/@anam-ai/js-sdk@latest");
@@ -536,7 +554,11 @@ $("attract").addEventListener("click", async () => {
   setState("waking");
   if (CONFIG.anam_enabled && !anam) {
     try { await initAnam(); }
-    catch (e) { console.error(e); toast("Avatar stream failed — running without video."); enterDevAvatar(); }
+    catch (e) {
+      console.error(e);
+      toast("Avatar unavailable: " + (e && e.message ? e.message : e), 9000);
+      enterDevAvatar();
+    }
   }
 });
 
@@ -544,6 +566,37 @@ $("btn-menu").onclick = () => {
   if ($("menu-drawer").hidden) openMenu();
   else $("menu-drawer").hidden = true;
 };
+/** Hard stop: end the avatar session, silence everything, clear the screen and
+    go back to attract. Tapping the attract screen starts a fresh session - so
+    this also stops burning Anam minutes when nobody is at the kiosk. */
+function stopEverything() {
+  send({ type: "sleep", reason: "manual" });
+  stopSpeaking();
+  captionBuf = [];
+  renderCaption();
+  closeAll();
+  $("menu-drawer").hidden = true;
+  $("dev-input").hidden = true;
+
+  if (anam) {
+    for (const m of ["stopStreaming", "disconnect", "destroy"]) {
+      if (typeof anam[m] === "function") { try { anam[m](); } catch (e) { console.warn(m, e); } }
+    }
+    anam = null;
+  }
+  talkStream = null;
+  micLive = false;
+  lastForwarded = "";
+  saidRecently = [];
+  const v = $("persona-video");
+  if (v) { try { v.pause(); } catch {} v.srcObject = null; v.hidden = true; }
+  $("dev-avatar").hidden = true;
+  updateMicButton();
+  setState("attract");
+  toast("Stopped. Tap the screen to start again.", 5000);
+}
+
+$("btn-stop").onclick = stopEverything;
 $("btn-mic").onclick = toggleMic;
 $("btn-close").onclick = () => { closeAll(); send({ type: "touch", target: "close" }); };
 

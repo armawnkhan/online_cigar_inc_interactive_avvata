@@ -100,6 +100,9 @@ body {
 }
 #dock button small { font-size: 1.05vmin; color: var(--muted); letter-spacing: .06em; }
 #dock button:active { border-color: var(--gold); transform: scale(.96); }
+#btn-stop { border-color: rgba(198, 80, 68, .55); }
+#btn-stop span { color: #c65044; }
+#btn-stop:active { border-color: #c65044; }
 #btn-mic.live { border-color: #6fbf73; box-shadow: 0 0 3vmin rgba(111,191,115,.35); }
 #btn-mic.muted { opacity: .55; }
 

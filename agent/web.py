@@ -128,8 +128,12 @@ async def anam_session_token():
             json={"personaConfig": persona},
         )
     if r.status_code != 200:
-        log.error("Anam token mint failed %s: %s", r.status_code, r.text[:300])
-        raise HTTPException(502, "Could not create Anam session")
+        # Pass Anam's own reason through. It is their error text, not our key,
+        # and without it a failure on the kiosk is undiagnosable - the screen
+        # just says "avatar unavailable" with nothing to act on.
+        reason = r.text[:200].strip()
+        log.error("Anam token mint failed %s: %s", r.status_code, reason)
+        raise HTTPException(502, f"Anam refused the session ({r.status_code}): {reason}")
     return r.json()
 
 
