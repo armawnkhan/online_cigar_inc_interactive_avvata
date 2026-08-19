@@ -24,6 +24,7 @@ let lastForwarded = "";     // last user transcript sent, to dedupe history even
 let captionsOn = false;     // CC toggle
 let soundOn = true;         // sound toggle - muting never stops the lip sync
 let captionBuf = [];        // sentences of the current response, for the caption
+let saidRecently = [];      // what SHE just said, to spot the speakers feeding the mic
 
 /* ------------------------------------------------------------- utilities */
 
@@ -104,7 +105,26 @@ function renderCaption() {
   $("captions").hidden = !captionsOn || captionBuf.length === 0;
 }
 
+/** Normalise for comparison: lowercase, letters and digits only. */
+function _norm(t) {
+  return String(t || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** On a kiosk the speakers sit next to the microphone, so Anam's STT hears her
+    own voice and reports it as the customer talking - she then answers herself,
+    over and over. Drop any "transcript" that is really her own words coming
+    back, plus grunts too short to be a sentence. */
+function looksLikeEcho(text) {
+  const n = _norm(text);
+  if (n.length < 3) return true;                 // a cough, a click, a stray word
+  const now = Date.now();
+  saidRecently = saidRecently.filter((s) => now - s.t < 10000);
+  return saidRecently.some((s) => s.text.includes(n) || n.includes(s.text));
+}
+
 function speak(text) {
+  saidRecently.push({ text: _norm(text), t: Date.now() });
+  if (saidRecently.length > 24) saidRecently.shift();
   captionBuf.push(text);
   if (captionBuf.length > 6) captionBuf.shift();   // keep the caption readable
   renderCaption();
@@ -180,6 +200,10 @@ async function initAnam() {
   anam.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, (messages) => {
     const last = messages[messages.length - 1];
     if (last && last.role === "user" && last.content && last.content !== lastForwarded) {
+      if (looksLikeEcho(last.content)) {
+        console.debug("dropped echo/noise:", last.content);
+        return;                                  // her own voice, not a customer
+      }
       lastForwarded = last.content;
       onUserSpoke();
       send({ type: "user_text", text: last.content });

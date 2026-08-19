@@ -82,27 +82,31 @@ body {
 @keyframes pulse { 50% { opacity: .3; } }
 
 /* ------------- dock ------------- */
+/* The Luma stands with its bottom edge almost on the floor, so anything docked
+   along the bottom is unreachable. Controls live on the side rails instead, at
+   hand height, and smaller. */
 #dock {
-  position: absolute; bottom: 2.4vmin; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 2.4vmin; z-index: 40;
+  position: absolute; right: 2.2vmin; top: 50%; left: auto; bottom: auto;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 1.5vmin; z-index: 40;
 }
 #dock button {
-  width: 11vmin; height: 11vmin; border-radius: 50%;
+  width: 8vmin; height: 8vmin; border-radius: 50%;
   background: var(--panel); color: var(--text);
   border: 1px solid var(--line);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: .4vmin; font-size: 3.2vmin; cursor: pointer;
+  gap: .25vmin; font-size: 2.5vmin; cursor: pointer;
   backdrop-filter: blur(6px);
 }
-#dock button small { font-size: 1.3vmin; color: var(--muted); letter-spacing: .08em; }
+#dock button small { font-size: 1.05vmin; color: var(--muted); letter-spacing: .06em; }
 #dock button:active { border-color: var(--gold); transform: scale(.96); }
 #btn-mic.live { border-color: #6fbf73; box-shadow: 0 0 3vmin rgba(111,191,115,.35); }
 #btn-mic.muted { opacity: .55; }
 
 /* ------------- product frame ------------- */
 #product-frame {
-  position: absolute; left: 50%; bottom: 17vmin; transform: translateX(-50%);
-  width: 78%; z-index: 20;
+  position: absolute; left: 50%; bottom: 4vmin; transform: translateX(-50%);
+  width: 72%; z-index: 20;
   animation: rise .45s cubic-bezier(.2,.9,.3,1.15);
 }
 @keyframes rise { from { transform: translate(-50%, 6vmin); opacity: 0; } }
@@ -312,11 +316,12 @@ body {
    Two controls live on the video: CC and sound. Muting silences the audio
    only — she keeps rendering and lip-syncing, and captions keep updating. */
 #av-controls {
-  position: absolute; top: 2vmin; right: 2vmin; z-index: 45;
-  display: flex; gap: 1vmin;
+  position: absolute; left: 2.2vmin; top: 50%; right: auto;
+  transform: translateY(-50%); z-index: 45;
+  display: flex; flex-direction: column; gap: 1.5vmin;
 }
 .av-btn {
-  width: 6vmin; height: 6vmin; border-radius: 50%;
+  width: 8vmin; height: 8vmin; border-radius: 50%;
   border: 1px solid var(--line); background: rgba(0,0,0,.55); color: var(--muted);
   font-size: 2vmin; font-weight: 600; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -327,8 +332,8 @@ body {
 
 #captions {
   position: absolute; left: 50%; transform: translateX(-50%);
-  bottom: 16vmin; z-index: 35;
-  width: 82%; max-height: 22vmin; overflow: hidden;
+  bottom: 4vmin; z-index: 35;
+  width: 72%; max-height: 22vmin; overflow: hidden;
   display: flex; align-items: flex-end; justify-content: center;
   pointer-events: none;
 }
