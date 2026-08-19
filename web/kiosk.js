@@ -556,7 +556,10 @@ $("attract").addEventListener("click", async () => {
     try { await initAnam(); }
     catch (e) {
       console.error(e);
-      toast("Avatar unavailable: " + (e && e.message ? e.message : e), 9000);
+      const msg = String((e && e.message) || e);
+      toast(/concurren/i.test(msg)
+        ? "Avatar busy — another session is already open. Close other tabs, or press Stop there, then tap to retry."
+        : "Avatar unavailable: " + msg, 10000);
       enterDevAvatar();
     }
   }
@@ -578,12 +581,7 @@ function stopEverything() {
   $("menu-drawer").hidden = true;
   $("dev-input").hidden = true;
 
-  if (anam) {
-    for (const m of ["stopStreaming", "disconnect", "destroy"]) {
-      if (typeof anam[m] === "function") { try { anam[m](); } catch (e) { console.warn(m, e); } }
-    }
-    anam = null;
-  }
+  releaseAnam();
   talkStream = null;
   micLive = false;
   lastForwarded = "";
@@ -692,6 +690,19 @@ function enterDevAvatar() {
   $("dev-avatar").hidden = false;
   $("dev-input").hidden = false;   // dev mode: show it straight away
 }
+
+/** Hand the Anam session back. Every reload or closed tab otherwise strands
+    one until it times out, and the plan's concurrency limit is quickly used up
+    by sessions nobody is watching. */
+function releaseAnam() {
+  if (!anam) return;
+  for (const m of ["stopStreaming", "disconnect", "destroy"]) {
+    if (typeof anam[m] === "function") { try { anam[m](); } catch {} }
+  }
+  anam = null;
+}
+window.addEventListener("pagehide", releaseAnam);
+window.addEventListener("beforeunload", releaseAnam);
 
 /* ------------------------------------------------------------- boot */
 
