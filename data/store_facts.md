@@ -6,7 +6,8 @@ policies — may be stated unless it is on this list or comes from a tool call.
 Add only TRUE facts. One fact per line. Changes take effect on restart.
 
 - We're at 21900 Burbank Blvd, Unit 265, Woodland Hills, California 91367 —
-  inside a commercial office building.
+  inside a commercial office building. This is our headquarters.
+- We also have a Cigar Inc. store in Dubai.
 - Hours: Monday to Friday, nine thirty in the morning to five thirty in the evening.
 - Phone: 818-719-9885. Email: Info@CigarInc.com.
 - The full catalog is online at cigarinc.com; we ship nationwide to adults

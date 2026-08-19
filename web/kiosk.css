@@ -295,3 +295,47 @@ body {
   padding: 1.4vmin 2.4vmin; border-radius: 999px; font-size: 1.7vmin; z-index: 70;
   max-width: 84%; text-align: center;
 }
+
+/* ------------- captions + a/v controls -------------
+   Two controls live on the video: CC and sound. Muting silences the audio
+   only — she keeps rendering and lip-syncing, and captions keep updating. */
+#av-controls {
+  position: absolute; top: 2vmin; right: 2vmin; z-index: 45;
+  display: flex; gap: 1vmin;
+}
+.av-btn {
+  width: 6vmin; height: 6vmin; border-radius: 50%;
+  border: 1px solid var(--line); background: rgba(0,0,0,.55); color: var(--muted);
+  font-size: 2vmin; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.av-btn.is-on { color: var(--gold); border-color: var(--gold); }
+.av-btn:active { transform: scale(.94); }
+
+#captions {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 16vmin; z-index: 35;
+  width: 82%; max-height: 22vmin; overflow: hidden;
+  display: flex; align-items: flex-end; justify-content: center;
+  pointer-events: none;
+}
+#caption-text {
+  margin: 0; padding: 1.4vmin 2.2vmin;
+  background: rgba(0,0,0,.72); border-radius: var(--radius);
+  border: 1px solid rgba(201,164,92,.25);
+  color: var(--text); font-size: 2.1vmin; line-height: 1.45; text-align: center;
+  backdrop-filter: blur(6px);
+}
+/* the frame is up: lift the captions so they don't collide with it */
+#stage.frame-open #captions { bottom: auto; top: 10vmin; }
+
+/* ------------- primary action on the product frame ------------- */
+.frame-actions button.primary {
+  background: var(--gold); border-color: var(--gold); color: #17130c;
+  font-weight: 600; flex: 1 1 auto; min-width: 40%;
+}
+.frame-actions button.primary:active { filter: brightness(1.12); }
+
+/* ------------- typing bar ------------- */
+#dev-input { z-index: 46; }

@@ -21,6 +21,9 @@ let talkStream = null;      // current Anam talk stream (one per response)
 let micLive = false;        // open-mic state
 let devRecognition = null;  // dev-mode webkitSpeechRecognition
 let lastForwarded = "";     // last user transcript sent, to dedupe history events
+let captionsOn = false;     // CC toggle
+let soundOn = true;         // sound toggle - muting never stops the lip sync
+let captionBuf = [];        // sentences of the current response, for the caption
 
 /* ------------------------------------------------------------- utilities */
 
@@ -96,7 +99,15 @@ function handleServer(msg) {
 
 /* ------------------------------------------------------------- speech out */
 
+function renderCaption() {
+  $("caption-text").textContent = captionBuf.join(" ");
+  $("captions").hidden = !captionsOn || captionBuf.length === 0;
+}
+
 function speak(text) {
+  captionBuf.push(text);
+  if (captionBuf.length > 6) captionBuf.shift();   // keep the caption readable
+  renderCaption();
   if (anam) {
     if (!talkStream) talkStream = anam.createTalkMessageStream();
     talkStream.streamMessageChunk(text + " ", false);
@@ -112,6 +123,42 @@ function endSpeech() {
     try { talkStream.endMessage(); } catch {}
     talkStream = null;
   }
+}
+
+/** Stop her mid-sentence the instant the customer starts talking. */
+function stopSpeaking() {
+  captionBuf = [];
+  renderCaption();
+  if (talkStream) {
+    try { talkStream.endMessage(); } catch {}
+    talkStream = null;
+  }
+  if (anam) {
+    // The SDK has changed the name of this across versions; take whichever
+    // exists. Never call stopStreaming() - that tears down the whole session.
+    for (const m of ["interruptPersona", "interrupt", "stopTalking"]) {
+      if (typeof anam[m] === "function") {
+        try { anam[m](); break; } catch (e) { console.warn("interrupt via " + m + " failed", e); }
+      }
+    }
+  }
+  if ("speechSynthesis" in window) { try { speechSynthesis.cancel(); } catch {} }
+}
+
+function applySound() {
+  const v = $("persona-video");
+  if (v) { v.muted = !soundOn; v.volume = soundOn ? 1 : 0; }
+  const btn = $("btn-sound");
+  btn.classList.toggle("is-on", soundOn);
+  btn.setAttribute("aria-pressed", String(soundOn));
+  btn.textContent = soundOn ? "\u{1F50A}" : "\u{1F507}";
+}
+
+function applyCaptions() {
+  const btn = $("btn-cc");
+  btn.classList.toggle("is-on", captionsOn);
+  btn.setAttribute("aria-pressed", String(captionsOn));
+  renderCaption();
 }
 
 /* ------------------------------------------------------------- anam */
@@ -223,8 +270,10 @@ function restoreFrame() {
   $("product-frame").classList.remove("minimized");
 }
 
-/** Called whenever the customer speaks or types - she must stay visible. */
+/** Called whenever the customer speaks or types.
+    Two rules: she stops talking immediately, and she stays visible. */
 function onUserSpoke() {
+  stopSpeaking();
   if (frameIsShown()) minimizeFrame();
 }
 
@@ -248,6 +297,8 @@ function showFrame(p) {
   $("frame-3d").hidden = !p.has_model_3d;
   $("product-frame").hidden = false;
   $("menu-drawer").hidden = true;
+  stage.classList.add("frame-open");
+  renderCaption();
 }
 
 function showMedia(p) {
@@ -321,6 +372,7 @@ async function openPip(url, title, id) {
 function closeAll() {
   $("product-frame").hidden = true;
   restoreFrame();               // don't leave .minimized stuck for the next frame
+  stage.classList.remove("frame-open");
   $("media-overlay").hidden = true;
   $("pip-overlay").hidden = true;
   $("menu-drawer").hidden = true;
@@ -481,6 +533,15 @@ document.querySelector(".frame-media").onclick = () => {
   openProductPage();
 };
 $("frame-page").onclick = openProductPage;
+$("frame-cart").onclick = addToCart;
+
+$("btn-cc").onclick = () => { captionsOn = !captionsOn; applyCaptions(); };
+$("btn-sound").onclick = () => { soundOn = !soundOn; applySound(); };
+$("btn-type").onclick = () => {
+  const f = $("dev-input");
+  f.hidden = !f.hidden;
+  if (!f.hidden) $("dev-text").focus();
+};
 $("frame-video").onclick = () => frameProduct && showMediaFor("video");
 $("frame-3d").onclick = () => frameProduct && showMediaFor("model_3d");
 
@@ -488,6 +549,28 @@ function openProductPage() {
   if (!frameProduct) return;
   const domain = CONFIG.store_domain || "cigarinc.com";
   openPip(`https://${domain}/products/${frameProduct.handle}`, frameProduct.title, "product");
+}
+
+/* Add to cart. Shopify cart permalinks are /cart/<variant_id>:<qty>, so we look
+   up the live variant id first. The customer finishes on their own phone -
+   cigarinc.com sends frame-ancestors 'none' and x-frame-options: DENY, so the
+   page physically cannot be shown inside the kiosk. */
+async function addToCart() {
+  if (!frameProduct) return;
+  const domain = CONFIG.store_domain || "cigarinc.com";
+  send({ type: "touch", target: "product_frame", handle: frameProduct.handle });
+  try {
+    const full = await (await fetch(api(`api/product/${frameProduct.handle}`))).json();
+    if (full.variant_id) {
+      openPip(`https://${domain}/cart/${full.variant_id}:1`,
+              `${frameProduct.title} — in your cart`, "cart");
+      return;
+    }
+  } catch (e) { console.warn("variant lookup failed", e); }
+  // No variant id (Shopify overlay off or unreachable): send them to the
+  // product page rather than a cart link we cannot build honestly.
+  toast("Opening the product page — add it there.");
+  openProductPage();
 }
 
 async function showMediaFor(kind) {
@@ -505,7 +588,7 @@ $("dev-input").addEventListener("submit", (e) => {
 function enterDevAvatar() {
   $("persona-video").hidden = true;
   $("dev-avatar").hidden = false;
-  $("dev-input").hidden = false;
+  $("dev-input").hidden = false;   // dev mode: show it straight away
 }
 
 /* ------------------------------------------------------------- boot */
@@ -518,6 +601,8 @@ function enterDevAvatar() {
     ? `Tap anywhere — ${CONFIG.persona_name} is here to help`
     : "Tap anywhere to begin";
   if (!CONFIG.anam_enabled) enterDevAvatar();
+  applySound();                  // sound on, captions off, to start
+  applyCaptions();
   setState("attract");
   connectWS();
 })();

@@ -192,6 +192,14 @@ def recommend(
     name matches a column scores strongly on that column; otherwise its value
     is matched against everything the product says about itself. Pure
     matching, no model guessing."""
+    # The model doesn't always send a dict: sometimes a list of phrases, or a
+    # single string. Coerce instead of raising - a crash here costs a whole turn.
+    if isinstance(criteria, (list, tuple, set)):
+        criteria = {str(v): str(v) for v in criteria if v}
+    elif isinstance(criteria, str):
+        criteria = {criteria: criteria} if criteria.strip() else {}
+    elif not isinstance(criteria, dict):
+        criteria = {}
     criteria = dict(criteria or {})
     for k, v in legacy.items():          # old-style time_of_day=/palate= still work
         if v is not None:
@@ -252,6 +260,7 @@ def _shopify_overlay(handle: str, fallback_price: Optional[str] = None) -> dict:
       product(handle: $handle) {
         availableForSale
         priceRange { minVariantPrice { amount currencyCode } }
+        variants(first: 1) { edges { node { id availableForSale } } }
       }
     }"""
     try:
@@ -271,6 +280,14 @@ def _shopify_overlay(handle: str, fallback_price: Optional[str] = None) -> dict:
             "in_stock": bool(p["availableForSale"]),
             "price_stale": False,
         }
+        # Numeric variant id -> Shopify cart permalink, so "add to cart" puts the
+        # real item in a real cart instead of just opening the product page.
+        edges = ((p.get("variants") or {}).get("edges") or [])
+        if edges:
+            gid = str(edges[0]["node"]["id"])          # gid://shopify/ProductVariant/123
+            vid = gid.rsplit("/", 1)[-1]
+            if vid.isdigit():
+                out["variant_id"] = vid
         _SHOPIFY_CACHE[handle] = (now, out)
         return out
     except Exception as e:

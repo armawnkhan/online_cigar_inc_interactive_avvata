@@ -21,6 +21,16 @@
 
   <div id="state-chip" data-state="attract"><span class="dot"></span><span id="state-label">Idle</span></div>
 
+  <!-- Two controls that sit on the video: captions and sound. Muting kills the
+       audio only - she keeps rendering and lip-syncing, captions keep running. -->
+  <div id="av-controls">
+    <button id="btn-cc" class="av-btn" aria-pressed="false" aria-label="Captions" title="Captions">CC</button>
+    <button id="btn-sound" class="av-btn is-on" aria-pressed="true" aria-label="Sound" title="Sound">🔊</button>
+  </div>
+
+  <!-- What she is saying, in text. Off by default; the CC button turns it on. -->
+  <div id="captions" hidden><p id="caption-text"></p></div>
+
   <!-- The framed box she presents. Tapping the image opens the product page (PiP). -->
   <div id="product-frame" hidden>
     <button class="x" data-close="frame" aria-label="Close">✕</button>
@@ -33,9 +43,10 @@
         <div id="frame-price" class="price"></div>
         <dl id="frame-attrs"></dl>
         <div class="frame-actions">
+          <button id="frame-cart" class="primary">Add to cart</button>
+          <button id="frame-page">View on website</button>
           <button id="frame-video" hidden>▶ Video</button>
           <button id="frame-3d" hidden>⬡ View in 3D</button>
-          <button id="frame-page">Open product page ↗</button>
         </div>
       </div>
     </div>
@@ -74,10 +85,11 @@
   <footer id="dock">
     <button id="btn-menu" aria-label="Menu"><span>☰</span><small>Browse</small></button>
     <button id="btn-mic" aria-label="Microphone"><span>🎙</span><small id="mic-label">Tap to talk</small></button>
+    <button id="btn-type" aria-label="Type"><span>⌨</span><small>Type</small></button>
     <button id="btn-close" aria-label="Clear screen"><span>✕</span><small>Clear</small></button>
   </footer>
 
-  <!-- Dev-only text bar (shown when no speech input is available) -->
+  <!-- Type to her instead of speaking. Always available, not just in dev mode. -->
   <form id="dev-input" hidden>
     <input id="dev-text" type="text" placeholder="Type to her…" autocomplete="off">
     <button type="submit">Send</button>

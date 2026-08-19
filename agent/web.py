@@ -96,6 +96,10 @@ def get_config():
         "anam_enabled": bool(os.getenv("ANAM_API_KEY")),
         "brain_enabled": bool(os.getenv("ANTHROPIC_API_KEY")),
         "signup_url": parse_signup_url(load_house_rules()),
+        # Public storefront domain for cart / product links shown to customers.
+        # SHOPIFY_STORE_DOMAIN is the *.myshopify.com admin domain, which is not
+        # what we want a customer scanning a QR code to land on.
+        "store_domain": os.getenv("PUBLIC_STORE_DOMAIN", "cigarinc.com"),
     }
 
 
