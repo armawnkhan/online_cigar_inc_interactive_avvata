@@ -103,8 +103,12 @@ function handleServer(msg) {
 /* ------------------------------------------------------------- speech out */
 
 function renderCaption() {
-  $("caption-text").textContent = captionBuf.join(" ");
-  $("captions").hidden = !captionsOn || captionBuf.length === 0;
+  const box = $("captions"), txt = $("caption-text");
+  txt.textContent = captionBuf.join(" ");
+  box.hidden = !captionsOn || captionBuf.length === 0;
+  stage.classList.toggle("cc-on", captionsOn);
+  // Two lines tall, scrolled to the newest words rather than the oldest.
+  requestAnimationFrame(() => { txt.scrollTop = txt.scrollHeight; });
 }
 
 /** Normalise for comparison: lowercase, letters and digits only. */
@@ -133,7 +137,7 @@ function speak(text) {
   saidRecently.push({ text: _norm(text), t: Date.now() });
   if (saidRecently.length > 24) saidRecently.shift();
   captionBuf.push(text);
-  if (captionBuf.length > 6) captionBuf.shift();   // keep the caption readable
+  if (captionBuf.length > 3) captionBuf.shift();   // keep the caption readable
   renderCaption();
   if (anam) {
     if (!talkStream) talkStream = anam.createTalkMessageStream();
@@ -310,14 +314,25 @@ function frameIsShown() {
   return !$("product-frame").hidden;
 }
 
+/** The caption lives at the BOTTOM. It only moves up while the full product
+    frame is covering that space - not when the frame is closed, and not when
+    it is shrunk to the corner thumbnail. */
+function syncCaptionPlacement() {
+  const el = $("product-frame");
+  const fullFrameUp = !el.hidden && !el.classList.contains("minimized");
+  stage.classList.toggle("frame-open", fullFrameUp);
+}
+
 function minimizeFrame() {
   const el = $("product-frame");
   if (el.hidden || el.classList.contains("minimized")) return;
   el.classList.add("minimized");
+  syncCaptionPlacement();          // shrunk away -> caption drops back down
 }
 
 function restoreFrame() {
   $("product-frame").classList.remove("minimized");
+  syncCaptionPlacement();
 }
 
 /** Called whenever the customer speaks or types.
@@ -347,7 +362,7 @@ function showFrame(p) {
   $("frame-3d").hidden = !p.has_model_3d;
   $("product-frame").hidden = false;
   $("menu-drawer").hidden = true;
-  stage.classList.add("frame-open");
+  syncCaptionPlacement();
   renderCaption();
 }
 
@@ -439,7 +454,7 @@ async function openPip(url, title, id) {
 function closeAll() {
   $("product-frame").hidden = true;
   restoreFrame();               // don't leave .minimized stuck for the next frame
-  stage.classList.remove("frame-open");
+  syncCaptionPlacement();
   $("media-overlay").hidden = true;
   $("pip-overlay").hidden = true;
   $("menu-drawer").hidden = true;
@@ -602,7 +617,12 @@ document.querySelectorAll(".x").forEach((x) => {
   x.onclick = (e) => {
     e.stopPropagation();
     const what = x.dataset.close;
-    if (what === "frame") { $("product-frame").hidden = true; restoreFrame(); send({ type: "touch", target: "close" }); }
+    if (what === "frame") {
+      $("product-frame").hidden = true;
+      restoreFrame();
+      syncCaptionPlacement();     // frame gone -> caption returns to the bottom
+      send({ type: "touch", target: "close" });
+    }
     if (what === "media") { $("media-overlay").hidden = true; $("media-slot").innerHTML = ""; send({ type: "touch", target: "close" }); }
     if (what === "menu") { $("menu-drawer").hidden = true; }
     if (what === "pip") {

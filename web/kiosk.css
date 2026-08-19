@@ -335,22 +335,35 @@ body {
 .av-btn.is-on { color: var(--gold); border-color: var(--gold); }
 .av-btn:active { transform: scale(.94); }
 
+/* Home is the BOTTOM. It only moves up while the full product frame is
+   occupying that space. Two lines tall, scrolled to the newest words. */
 #captions {
   position: absolute; left: 50%; transform: translateX(-50%);
   bottom: 4vmin; z-index: 35;
-  width: 72%; max-height: 22vmin; overflow: hidden;
+  width: 72%;
   display: flex; align-items: flex-end; justify-content: center;
   pointer-events: none;
+  transition: bottom .3s ease, top .3s ease;
 }
 #caption-text {
-  margin: 0; padding: 1.4vmin 2.2vmin;
+  margin: 0; padding: 1vmin 1.8vmin;
   background: rgba(0,0,0,.72); border-radius: var(--radius);
   border: 1px solid rgba(201,164,92,.25);
-  color: var(--text); font-size: 2.1vmin; line-height: 1.45; text-align: center;
+  color: var(--text); font-size: 1.9vmin; line-height: 1.35; text-align: center;
   backdrop-filter: blur(6px);
+  /* exactly two lines: 2 x line-height + padding */
+  max-height: calc(1.9vmin * 1.35 * 2 + 2vmin);
+  overflow-y: auto; scrollbar-width: none;
+  width: 100%;
 }
-/* the frame is up: lift the captions so they don't collide with it */
-#stage.frame-open #captions { bottom: auto; top: 10vmin; }
+#caption-text::-webkit-scrollbar { display: none; }
+
+/* full frame is up: lift the caption to the top, which is free space */
+#stage.frame-open #captions { bottom: auto; top: 9vmin; }
+
+/* captions on + frame shrunk to the corner: raise the thumbnail so the two
+   stack instead of overlapping at the bottom-right */
+#stage.cc-on #product-frame.minimized { bottom: 15vmin; }
 
 /* ------------- primary action on the product frame ------------- */
 .frame-actions button.primary {
