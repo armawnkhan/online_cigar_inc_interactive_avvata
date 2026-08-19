@@ -117,7 +117,13 @@ class Brain:
     ):
         self.client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         rules = load_house_rules()
-        self.tools = ToolRunner(emit_ui, signup_url=parse_signup_url(rules))
+        self.tools = ToolRunner(
+            emit_ui,
+            signup_url=parse_signup_url(rules),
+            # Hosted separately: the models are ~500 MB, far too much to ship
+            # with the kiosk. Unset = she never offers the 3D view.
+            viewer_3d_url=os.getenv("VIEWER_3D_URL") or None,
+        )
         self.speak = speak
         self.set_state = set_state or (lambda s: asyncio.sleep(0))
         self.banned = banned_pattern(rules)

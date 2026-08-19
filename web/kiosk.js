@@ -273,6 +273,7 @@ function handleUI(action, p) {
   switch (action) {
     case "show_product_frame": showFrame(p); break;
     case "show_media": showMedia(p); break;
+    case "show_3d": show3D(p); break;
     case "open_menu": openMenu(p.menu_id); break;
     case "close_overlay": closeAll(); break;
     case "show_web_page": openPip(p.url, p.title || "", p.id || "page"); break;
@@ -330,6 +331,23 @@ function showFrame(p) {
   $("menu-drawer").hidden = true;
   stage.classList.add("frame-open");
   renderCaption();
+}
+
+/* The 3D humidor viewer is a separate static site (its models are ~500 MB, so
+   they are not shipped with the kiosk). It sets no frame-ancestors, unlike the
+   Shopify store, so unlike a product page it CAN be embedded — it opens in
+   front of her in the media overlay, and ✕ hands the screen back to her. */
+function show3D(p) {
+  if (!p || !p.url) return;
+  const slot = $("media-slot");
+  slot.innerHTML = "";
+  const frame = document.createElement("iframe");
+  frame.src = p.url;
+  frame.title = p.title || "3D view";
+  frame.className = "media-iframe";
+  frame.setAttribute("allow", "accelerometer; gyroscope; xr-spatial-tracking");
+  slot.append(frame);
+  $("media-overlay").hidden = false;
 }
 
 function showMedia(p) {

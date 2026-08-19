@@ -15,7 +15,8 @@ from . import catalog
 log = logging.getLogger("tools")
 
 # Tools that are fast enough not to need a verbal filler.
-FAST_TOOLS = {"show_product_frame", "show_media", "open_menu", "close_overlay", "open_signup"}
+FAST_TOOLS = {"show_product_frame", "show_media", "open_menu", "close_overlay",
+              "open_signup", "show_humidor_3d"}
 
 TOOL_SCHEMAS = [
     {
@@ -125,6 +126,34 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "show_humidor_3d",
+        "description": (
+            "Show a humidor as a real 3D object the customer can spin with their hands and "
+            "open the lid of. This is the showpiece moment - offer it in words first "
+            "(\"this one's worth seeing properly, let me show you\") and then call it. "
+            "Only for the humidors listed in the model enum; everything else has no 3D."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "description": "Which humidor to show.",
+                    "enum": [
+                        "opusx-black", "opusx-blue", "opusx-red",
+                        "macc-01", "macc-02", "macc-03", "macc-04", "macc-05",
+                        "macc-06", "macc-07", "macc-08", "macc-09", "macc-10",
+                    ],
+                },
+                "open_lid": {
+                    "type": "boolean",
+                    "description": "Start with the lid open. Use when showing what is inside.",
+                },
+            },
+            "required": ["model"],
+        },
+    },
+    {
         "name": "open_menu",
         "description": "Open a browsing menu, e.g. 'cigars', 'humidors', 'accessories', 'deals'.",
         "input_schema": {
@@ -153,12 +182,15 @@ TOOL_SCHEMAS = [
 
 class ToolRunner:
     """`emit_ui` is injected by the server: an async fn (action, payload) -> None.
-    `signup_url` comes from the house rules file; None disables open_signup."""
+    `signup_url` comes from the house rules file; None disables open_signup.
+    `viewer_3d_url` is the hosted 3D humidor viewer; None disables show_humidor_3d."""
 
     def __init__(self, emit_ui: Callable[[str, dict], Awaitable[None]],
-                 signup_url: str | None = None):
+                 signup_url: str | None = None,
+                 viewer_3d_url: str | None = None):
         self.emit_ui = emit_ui
         self.signup_url = signup_url
+        self.viewer_3d_url = viewer_3d_url
         self._last_frame: str | None = None
 
     async def run(self, name: str, args: dict) -> Any:
@@ -241,6 +273,31 @@ class ToolRunner:
         self._last_frame = None
         await self.emit_ui("close_overlay", {})
         return {"ok": True}
+
+    HUMIDOR_TITLES = {
+        "opusx-black": "Fuente OpusX - black leather humidor",
+        "opusx-blue":  "Fuente OpusX - blue leather humidor",
+        "opusx-red":   "Fuente OpusX - red leather humidor",
+    }
+
+    async def _show_humidor_3d(self, model: str, open_lid: bool = False):
+        """Open the hosted 3D humidor viewer, pointed at one specific piece.
+
+        The viewer is a separate static site (500 MB of models - far too much to
+        ship with the kiosk), so this hands the browser a URL rather than a file.
+        """
+        if not self.viewer_3d_url:
+            return {"ok": False, "error": "no 3D viewer configured"}
+
+        model = (model or "").strip().lower()
+        if not model:
+            return {"ok": False, "error": "model is required"}
+
+        base = self.viewer_3d_url.rstrip("/") + "/"
+        url = f"{base}?model={model}" + ("&open=1" if open_lid else "")
+        title = self.HUMIDOR_TITLES.get(model) or f"Maccarrone {model.replace('macc-', '')}"
+        await self.emit_ui("show_3d", {"url": url, "model": model, "title": title})
+        return {"ok": True, "showing": model}
 
     async def _open_signup(self):
         if not self.signup_url:

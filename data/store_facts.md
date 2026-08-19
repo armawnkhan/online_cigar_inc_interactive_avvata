@@ -17,4 +17,6 @@ Add only TRUE facts. One fact per line. Changes take effect on restart.
 - For accessories we carry Brizard and Co, Maccarrone, S.T. Dupont, Raching
   and Pinnacle, among others.
 - We're the exclusive home of Kiki Momo cigars in California, Nevada and Georgia.
+- Some of our humidors can be viewed here in 3D - turned by hand and opened -
+  including the Fuente OpusX leather humidor in black, blue and red.
 - Everything here is for adults twenty-one and over.
