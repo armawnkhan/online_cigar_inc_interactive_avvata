@@ -82,6 +82,12 @@ function handleServer(msg) {
   switch (msg.type) {
     case "state":
       setState(msg.value);
+      // Back to attract means the session ended - idle timeout, max session, or
+      // a manual close. Hand the avatar session back NOW. Without this the
+      // stream stayed open and billing for as long as the tab was open, so a
+      // kiosk left running all day paid for a full day of avatar minutes for a
+      // few minutes of actual conversation. Tapping the screen starts a new one.
+      if (msg.value === "attract") endAvatarSession();
       break;
     case "speak":
       speak(msg.text);
@@ -714,6 +720,21 @@ function enterDevAvatar() {
 /** Hand the Anam session back. Every reload or closed tab otherwise strands
     one until it times out, and the plan's concurrency limit is quickly used up
     by sessions nobody is watching. */
+/** Drop the avatar stream and put the screen back to a clean idle. */
+function endAvatarSession() {
+  if (!anam) return;
+  releaseAnam();
+  talkStream = null;
+  micLive = false;
+  lastForwarded = "";
+  saidRecently = [];
+  captionBuf = [];
+  renderCaption();
+  const v = $("persona-video");
+  if (v) { try { v.pause(); } catch {} v.srcObject = null; v.hidden = true; }
+  updateMicButton();
+}
+
 function releaseAnam() {
   if (!anam) return;
   for (const m of ["stopStreaming", "disconnect", "destroy"]) {
