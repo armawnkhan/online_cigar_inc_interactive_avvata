@@ -594,6 +594,11 @@ function enterDevAvatar() {
 /* ------------------------------------------------------------- boot */
 
 (async function boot() {
+  // Show the attract screen BEFORE fetching anything. Until #stage carries
+  // data-state, the CSS hides #attract entirely — and on a cold start the
+  // config fetch can take the better part of a minute, which showed the
+  // customer a completely black screen with no logo on it.
+  setState("attract");
   try { CONFIG = await (await fetch(api("api/config"))).json(); } catch {}
   $("store-name").textContent = CONFIG.store_name || "";
   $("attract-title").textContent = CONFIG.store_name || "Welcome";

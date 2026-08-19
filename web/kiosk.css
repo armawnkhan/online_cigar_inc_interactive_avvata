@@ -272,10 +272,14 @@ body {
    that would read as haze through the Pepper's ghost glass. */
 .attract-logo {
   display: block; margin: 0 auto 2vmin;
-  width: 34vmin; max-width: 62%; height: auto;
-  animation: breathe 3.2s ease-in-out infinite;
+  width: 42vmin; max-width: 74%; height: auto;
+  /* Its own gentler breathe. The shared one dips to .45 opacity, which was
+     fine for a bold glyph but made this crest's fine gold linework read as
+     empty black for half of every cycle. */
+  animation: breathe-logo 4s ease-in-out infinite;
   user-select: none; -webkit-user-drag: none;
 }
+@keyframes breathe-logo { 50% { opacity: .82; transform: scale(1.03); } }
 @keyframes breathe { 50% { opacity: .45; transform: scale(1.06); } }
 #attract h1 {
   margin-top: 2vmin; font-size: 4.2vmin; font-weight: 500;
