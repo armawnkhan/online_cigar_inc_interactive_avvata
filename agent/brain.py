@@ -9,6 +9,7 @@ Two things matter here and nothing else does:
 import os
 import re
 import asyncio
+import random
 import logging
 from pathlib import Path
 from typing import Callable, Awaitable
@@ -234,11 +235,22 @@ class Brain:
         log.warning("tool loop guard hit")
 
     async def greet(self):
-        """Opening line. Varied - never the same greeting twice in a row."""
+        """Opening line, deliberately varied.
+
+        Asking the model to "vary your wording" does not work: with a fresh
+        session it has no history to vary FROM, so it settles on whichever
+        example reads best and repeats it. Naming a different opener each time
+        forces the spread without the engine knowing what the openers say -
+        the list itself stays in the persona file, where the business owns it.
+        """
+        nth = random.randint(1, 8)
         self.messages.append({
             "role": "user",
-            "content": "[A customer has just walked up. Greet them warmly and ask one open question. "
-                       "Vary your wording from any previous greeting.]",
+            "content": f"[A customer has just walked up. Greet them and ask one open question. "
+                       f"Use opener number {nth} from the list of example openers in your persona "
+                       f"as the flavour - same spirit, your own words, never quoted verbatim. "
+                       f"If there is no such numbered example, invent one in that style. "
+                       f"One short line only.]",
         })
         await self.respond("")  # respond() appends an empty user turn; harmless
         self.messages = [m for m in self.messages if m.get("content") != ""]

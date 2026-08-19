@@ -11,6 +11,7 @@ Per Arman (2026-08-14): batch these later, don't interrupt the web work for them
 | 2026-08-14 | `data/house_rules.md` | Added rule under "Always do this": a sampler is a cigar product, never an accessory | Copy the rule text across |
 | 2026-08-14 | `data/products.xlsx` | Replaced: 50 rows → all 1,013 store products, with wrapper/origin/strength/tasting_notes/occasion/palate filled | Copy the file across |
 | 2026-08-14 | `scripts/build_catalog.py` | Derives `smoke_minutes` (tobacco volume, 1 mL = 1 min) and `time_of_day` (from strength 1–5) when the sheet leaves them blank | Copy the file across |
+| 2026-08-19 | `agent/brain.py` | `greet()` names a random opener number so the greeting actually varies between sessions | Copy the greet() change |
 | 2026-08-14 | `agent/catalog.py` | Added `smoke_minutes` to `FIELDS`, and `smoke_minutes` + `time_of_day` to `BRIEF_FIELDS` so the model can see them | Copy the two list edits |
 
 ## Rebuild command (run in the Unreal repo)
