@@ -25,6 +25,8 @@ let captionsOn = false;     // CC toggle
 let soundOn = true;         // sound toggle - muting never stops the lip sync
 let captionBuf = [];        // sentences of the current response, for the caption
 let saidRecently = [];      // what SHE just said, to spot the speakers feeding the mic
+const ECHO_MIN_LEN = 24;    // shorter than this is always treated as a real person
+const ECHO_WINDOW_MS = 6000;
 
 /* ------------------------------------------------------------- utilities */
 
@@ -116,10 +118,15 @@ function _norm(t) {
     back, plus grunts too short to be a sentence. */
 function looksLikeEcho(text) {
   const n = _norm(text);
-  if (n.length < 3) return true;                 // a cough, a click, a stray word
+  if (!n) return true;                           // empty
+  // Anything a person would plausibly say goes straight through. Only a long
+  // phrase repeated back almost verbatim is treated as the speakers feeding
+  // the mic - matching loosely here silently swallows real customers
+  // ("a cigar", "today") because those words appear in her own sentences.
+  if (n.length < ECHO_MIN_LEN) return false;
   const now = Date.now();
-  saidRecently = saidRecently.filter((s) => now - s.t < 10000);
-  return saidRecently.some((s) => s.text.includes(n) || n.includes(s.text));
+  saidRecently = saidRecently.filter((s) => now - s.t < ECHO_WINDOW_MS);
+  return saidRecently.some((s) => s.text.length >= ECHO_MIN_LEN && s.text.includes(n));
 }
 
 function speak(text) {
